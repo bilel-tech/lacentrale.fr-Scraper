@@ -29,7 +29,7 @@ namespace lacentrale.fr_Scraper
         /// Required method for Designer support - do not modify
         /// the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent()
+        public void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
             this.layoutControl2 = new DevExpress.XtraLayout.LayoutControl();
@@ -78,8 +78,10 @@ namespace lacentrale.fr_Scraper
             this.CompanySellerRepositoryItemCheckEdit = new DevExpress.XtraEditors.Repository.RepositoryItemCheckEdit();
             this.VatCol = new DevExpress.XtraGrid.Columns.GridColumn();
             this.VatRpositoryItemCheckEdit = new DevExpress.XtraEditors.Repository.RepositoryItemCheckEdit();
+            this.PublishedDaysFilter = new DevExpress.XtraEditors.TextEdit();
             this.layoutControlGroup3 = new DevExpress.XtraLayout.LayoutControlGroup();
             this.layoutControlItem1 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem6 = new DevExpress.XtraLayout.LayoutControlItem();
             this.modelBindingSource2 = new System.Windows.Forms.BindingSource(this.components);
             this.modelBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.makeBindingSource = new System.Windows.Forms.BindingSource(this.components);
@@ -132,8 +134,10 @@ namespace lacentrale.fr_Scraper
             ((System.ComponentModel.ISupportInitialize)(this.FuelTypeRepositoryItemLookUpEdit)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.CompanySellerRepositoryItemCheckEdit)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.VatRpositoryItemCheckEdit)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PublishedDaysFilter.Properties)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem6)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.modelBindingSource2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.modelBindingSource)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.makeBindingSource)).BeginInit();
@@ -318,6 +322,7 @@ namespace lacentrale.fr_Scraper
             // layoutControl3
             // 
             this.layoutControl3.Controls.Add(this.GridControle);
+            this.layoutControl3.Controls.Add(this.PublishedDaysFilter);
             this.layoutControl3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.layoutControl3.Location = new System.Drawing.Point(0, 0);
             this.layoutControl3.Name = "layoutControl3";
@@ -345,7 +350,7 @@ namespace lacentrale.fr_Scraper
             this.MaxRepositoryItemTextEdit,
             this.MinKmsRepositoryItemTextEdit,
             this.MaxKmsRepositoryItemTextEdit});
-            this.GridControle.Size = new System.Drawing.Size(1332, 488);
+            this.GridControle.Size = new System.Drawing.Size(1332, 464);
             this.GridControle.TabIndex = 49;
             this.GridControle.UseEmbeddedNavigator = true;
             this.GridControle.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
@@ -575,12 +580,23 @@ namespace lacentrale.fr_Scraper
             this.VatRpositoryItemCheckEdit.AutoHeight = false;
             this.VatRpositoryItemCheckEdit.Name = "VatRpositoryItemCheckEdit";
             // 
+            // PublishedDaysFilter
+            // 
+            this.PublishedDaysFilter.Location = new System.Drawing.Point(130, 480);
+            this.PublishedDaysFilter.Name = "PublishedDaysFilter";
+            this.PublishedDaysFilter.Properties.Appearance.Options.UseTextOptions = true;
+            this.PublishedDaysFilter.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            this.PublishedDaysFilter.Size = new System.Drawing.Size(1214, 20);
+            this.PublishedDaysFilter.StyleController = this.layoutControl3;
+            this.PublishedDaysFilter.TabIndex = 50;
+            // 
             // layoutControlGroup3
             // 
             this.layoutControlGroup3.EnableIndentsWithoutBorders = DevExpress.Utils.DefaultBoolean.True;
             this.layoutControlGroup3.GroupBordersVisible = false;
             this.layoutControlGroup3.Items.AddRange(new DevExpress.XtraLayout.BaseLayoutItem[] {
-            this.layoutControlItem1});
+            this.layoutControlItem1,
+            this.layoutControlItem6});
             this.layoutControlGroup3.Name = "layoutControlGroup3";
             this.layoutControlGroup3.Size = new System.Drawing.Size(1356, 512);
             this.layoutControlGroup3.TextVisible = false;
@@ -590,9 +606,18 @@ namespace lacentrale.fr_Scraper
             this.layoutControlItem1.Control = this.GridControle;
             this.layoutControlItem1.Location = new System.Drawing.Point(0, 0);
             this.layoutControlItem1.Name = "layoutControlItem1";
-            this.layoutControlItem1.Size = new System.Drawing.Size(1336, 492);
+            this.layoutControlItem1.Size = new System.Drawing.Size(1336, 468);
             this.layoutControlItem1.TextSize = new System.Drawing.Size(0, 0);
             this.layoutControlItem1.TextVisible = false;
+            // 
+            // layoutControlItem6
+            // 
+            this.layoutControlItem6.Control = this.PublishedDaysFilter;
+            this.layoutControlItem6.Location = new System.Drawing.Point(0, 468);
+            this.layoutControlItem6.Name = "layoutControlItem6";
+            this.layoutControlItem6.Size = new System.Drawing.Size(1336, 24);
+            this.layoutControlItem6.Text = "Max days since pblished";
+            this.layoutControlItem6.TextSize = new System.Drawing.Size(115, 13);
             // 
             // modelBindingSource2
             // 
@@ -722,7 +747,7 @@ namespace lacentrale.fr_Scraper
             this.Controls.Add(this.layoutControl1);
             this.IconOptions.Image = global::lacentrale.fr_Scraper.Properties.Resources.lacentral1;
             this.Name = "DevForm";
-            this.Text = "     lacentral.fr scraper 1.01";
+            this.Text = "     lacentral.fr scraper 1.03";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.DevForm_FormClosing);
             this.Load += new System.EventHandler(this.DevForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.layoutControl2)).EndInit();
@@ -761,8 +786,10 @@ namespace lacentrale.fr_Scraper
             ((System.ComponentModel.ISupportInitialize)(this.FuelTypeRepositoryItemLookUpEdit)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.CompanySellerRepositoryItemCheckEdit)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.VatRpositoryItemCheckEdit)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PublishedDaysFilter.Properties)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup3)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem6)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.modelBindingSource2)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.modelBindingSource)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.makeBindingSource)).EndInit();
@@ -837,5 +864,7 @@ namespace lacentrale.fr_Scraper
         private System.Windows.Forms.BindingSource makeBindingSource1;
         private System.Windows.Forms.BindingSource modelBindingSource3;
         private System.Windows.Forms.BindingSource inputModelBindingSource;
+        private DevExpress.XtraEditors.TextEdit PublishedDaysFilter;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem6;
     }
 }

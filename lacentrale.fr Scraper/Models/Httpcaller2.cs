@@ -1,18 +1,18 @@
-﻿using System;
+﻿using HtmlAgilityPack;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using HtmlAgilityPack;
 
 namespace lacentrale.fr_Scraper.Models
 {
-    public class HttpCaller
+    public class Httpcaller2
     {
         HttpClient _httpClient;
-        public string cookies;
         HttpClientHandler _httpClientHandler = new HttpClientHandler()
         {
             //CookieContainer = new CookieContainer(),
@@ -20,11 +20,12 @@ namespace lacentrale.fr_Scraper.Models
             //Proxy = wproxy,
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
         };
-        public HttpCaller()
+        public Httpcaller2()
         {
             _httpClient = new HttpClient(_httpClientHandler);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1370.37");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");        }
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+        }
         public async Task<HtmlDocument> GetDoc(string url, int maxAttempts = 1)
         {
             var html = await GetHtml(url, maxAttempts);
@@ -34,10 +35,7 @@ namespace lacentrale.fr_Scraper.Models
         }
         public async Task<string> GetHtml(string url, int maxAttempts = 3)
         {
-            if (!url.Contains("http://2captcha.com/in"))
-            {
-                _httpClient.DefaultRequestHeaders.Add("cookie", cookies); 
-            }
+
             int tries = 0;
             do
             {
@@ -45,11 +43,6 @@ namespace lacentrale.fr_Scraper.Models
                 {
                     var response = await _httpClient.GetAsync(url);
                     string html = await response.Content.ReadAsStringAsync();
-                   
-                    if (!url.Contains("http://2captcha.com/in"))
-                    {
-                        _httpClient.DefaultRequestHeaders.Remove("cookie"); 
-                    }
                     return html;
                 }
                 catch (WebException ex)
