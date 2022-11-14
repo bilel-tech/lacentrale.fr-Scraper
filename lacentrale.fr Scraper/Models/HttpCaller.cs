@@ -12,7 +12,7 @@ namespace lacentrale.fr_Scraper.Models
     public class HttpCaller
     {
         HttpClient _httpClient;
-        public string cookies;
+        public string _cookies;
         HttpClientHandler _httpClientHandler = new HttpClientHandler()
         {
             //CookieContainer = new CookieContainer(),
@@ -24,7 +24,9 @@ namespace lacentrale.fr_Scraper.Models
         {
             _httpClient = new HttpClient(_httpClientHandler);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1370.37");
-            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");        }
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+            _httpClient.Timeout = TimeSpan.FromSeconds(100000);
+        }
         public async Task<HtmlDocument> GetDoc(string url, int maxAttempts = 1)
         {
             var html = await GetHtml(url, maxAttempts);
@@ -34,39 +36,23 @@ namespace lacentrale.fr_Scraper.Models
         }
         public async Task<string> GetHtml(string url, int maxAttempts = 3)
         {
-            if (!url.Contains("http://2captcha.com/in"))
-            {
-                _httpClient.DefaultRequestHeaders.Add("cookie", cookies); 
-            }
-            int tries = 0;
+
+            _httpClient.DefaultRequestHeaders.Add("cookie", _cookies);
             do
             {
                 try
                 {
                     var response = await _httpClient.GetAsync(url);
                     string html = await response.Content.ReadAsStringAsync();
-                   
-                    if (!url.Contains("http://2captcha.com/in"))
-                    {
-                        _httpClient.DefaultRequestHeaders.Remove("cookie"); 
-                    }
+                    _httpClient.DefaultRequestHeaders.Remove("cookie");
                     return html;
                 }
                 catch (WebException ex)
                 {
-                    var errorMessage = "";
-                    try
-                    {
-                        errorMessage = new StreamReader(ex.Response.GetResponseStream()).ReadToEnd();
-                    }
-                    catch (Exception)
-                    {
-                    }
-                    tries++;
-                    if (tries == maxAttempts)
-                    {
-                        throw new Exception(ex.Status + " " + ex.Message + " " + errorMessage);
-                    }
+                    await Task.Delay(2000);
+                }
+                catch (Exception ex)
+                {
                     await Task.Delay(2000);
                 }
             } while (true);

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Speech.Recognition;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -25,15 +27,18 @@ namespace lacentrale.fr_Scraper
     //83.149.70.159:13082
     public partial class DevForm : DevExpress.XtraEditors.XtraForm
     {
-        private List<Car> cars = new List<Car>();
+        private List<Car> _cars = new List<Car>();
+        private Car _car;
         private Config _config;
         public List<InputModel> inputModels = new List<InputModel>();
         public HttpCaller HttpCaller = new HttpCaller();
         public Httpcaller2 HttpCaller2 = new Httpcaller2();
         ChromeDriver _driver;
+        RecaptchaService _recaptchaService;
+        Process _chromeProcess;
         int _numberOfAllCarsScraped;
         int _daysSincePublishedOption;
-        int  _availableCars = 0;
+        int _availableCars = 0;
         public DevForm()
         {
             InitializeComponent();
@@ -61,8 +66,37 @@ namespace lacentrale.fr_Scraper
             }
             displayT.Text = s;
         }
+
         private async void StartB_Click(object sender, EventArgs e)
         {
+            //SpeechRecognitionEngine sre = new SpeechRecognitionEngine();
+            //Grammar gr = new DictationGrammar();
+            //sre.LoadGrammar(gr);
+            //sre.SetInputToWaveFile("audio.wav");
+            //sre.BabbleTimeout = new TimeSpan(int.MaxValue);
+            //sre.InitialSilenceTimeout = new TimeSpan(int.MaxValue);
+            //sre.EndSilenceTimeout = new TimeSpan(100000000);
+            //sre.EndSilenceTimeoutAmbiguous = new TimeSpan(100000000);
+
+            //StringBuilder sb = new StringBuilder();
+            //while (true)
+            //{
+            //    try
+            //    {
+            //        var recText = sre.Recognize();
+            //        if (recText == null)
+            //        {
+            //            break;
+            //        }
+
+            //        sb.Append(recText.Text);
+            //    }
+            //    catch (Exception)
+            //    {
+            //        break;
+            //    }
+            //}
+            //var audioText = sb.ToString();
             //return;
             //&reclaimVAT=true
             #region Find Vat Filters
@@ -118,21 +152,21 @@ namespace lacentrale.fr_Scraper
             //var arrayP = phoneText.Split('\n');
             //var phone = arrayP[0];
             #endregion
-            if (PublishedDaysFilter.Text == "")
+            if (PublishedDaysFilterI.Text == "")
             {
-                MessageBox.Show("Please fill the Max days since published fileld");
+                MessageBox.Show(@"Please fill the ""Max days since published"" fileld");
                 return;
             }
             try
             {
-                int.Parse(PublishedDaysFilter.Text);
+                int.Parse(PublishedDaysFilterI.Text);
             }
             catch (Exception)
             {
-                MessageBox.Show("Please make sure that the Max days since published fileld is a number");
+                MessageBox.Show(@"Please make sure that the ""Max days since published"" fileld is a number");
                 return;
             }
-            if (!Daily.Checked && !ThreeDays.Checked)
+            if (!DailyI.Checked && !ThreeDaysI.Checked)
             {
                 MessageBox.Show(@"Please select time base scraping ""Daily"" or ""3 days"" option ");
                 return;
@@ -144,7 +178,7 @@ namespace lacentrale.fr_Scraper
                     File.Delete("filters url.txt");
                 }
                 inputModels = new List<InputModel>();
-                cars = new List<Car>();
+                _cars = new List<Car>();
                 for (int i = 0; i < FiltersDGV.RowCount; i++)
                 {
                     var input = FiltersDGV.GetRow(i) as InputModel;
@@ -152,16 +186,16 @@ namespace lacentrale.fr_Scraper
                 }
                 var d2 = new DateTime();
                 var days = 1;
-                if (Daily.Checked)
+                if (DailyI.Checked)
                 {
                     d2 = DateTime.Now.AddDays(1);
                 }
-                if (ThreeDays.Checked)
+                if (ThreeDaysI.Checked)
                 {
                     days = 3;
                     d2 = DateTime.Now.AddDays(3);
                 }
-                _daysSincePublishedOption = int.Parse(PublishedDaysFilter.Text);
+                _daysSincePublishedOption = int.Parse(PublishedDaysFilterI.Text);
                 try
                 {
                     await GetCookies();
@@ -174,8 +208,10 @@ namespace lacentrale.fr_Scraper
                     return;
                 }
                 var d1 = DateTime.Now;
-                Display($@"work done for today we get {cars.Count} from {_availableCars} based on the filters you choosed, next run will be {DateTime.Now.AddDays(days):dd/MM/yyyy} ");
+                Display($@"work done for today we get {_cars.Count} cars from {_availableCars} available cars based on the filters you choosed, next run will be {DateTime.Now.AddDays(days):dd/MM/yyyy} ");
                 _numberOfAllCarsScraped = 0;
+                _cars = new List<Car>();
+                _availableCars = 0;
                 await Task.Delay(d2 - d1);
             } while (true);
         }
@@ -185,10 +221,32 @@ namespace lacentrale.fr_Scraper
             {
                 await StartScraping(inputModel);
             }
-            if (cars.Count > 0)
+            if (_cars.Count > 0)
             {
                 await SaveData();
             }
+        }
+        private async Task AttachToChrome()
+        {
+            var options = new ChromeOptions
+            {
+                DebuggerAddress = "127.0.0.1:9222"
+            };
+            var chromeDriverService = ChromeDriverService.CreateDefaultService();
+            chromeDriverService.HideCommandPromptWindow = true;
+            try
+            {
+                _driver = new ChromeDriver(chromeDriverService, options, TimeSpan.FromSeconds(10));
+            }
+            catch (Exception ex)
+            {
+                if (ex.ToString().Contains("timed out"))
+                    throw new Exception("Failed to attach to chrome");
+            }
+            _driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+            _driver.Navigate().Refresh();
+            await Task.Delay(1000);
+            _driver.Navigate().Refresh();
         }
         private async Task GetCookies()
         {
@@ -196,63 +254,84 @@ namespace lacentrale.fr_Scraper
             ChromeDriverService service = ChromeDriverService.CreateDefaultService();
             service.HideCommandPromptWindow = true;
             ChromeOptions options = new ChromeOptions();
+            _recaptchaService = new RecaptchaService();
+            var cookies = "";
             do
             {
-                _driver = new ChromeDriver(service, options);
-                //_driver.Manage().Window.Position = new System.Drawing.Point(-32000, -32000);
-                _driver.Navigate().GoToUrl("https://www.lacentrale.fr/");
-                if (_driver.PageSource.Contains("Rechercher une voiture"))
+                try
                 {
-                    await Task.Delay(1000);
-                    _driver.Quit();
-                    continue;
-                }
-                else
-                {
+                    await StratChromeProcess();
                     await Task.Delay(5000);
-                    var pageurl = _driver.FindElement(By.XPath("//iframe[contains(@src,'initialCid')]")).GetAttribute("src");
-                    var element = _driver.FindElement(By.XPath("//iframe[contains(@src,'initialCid')]"));
-                    _driver.SwitchTo().Frame(element);
-                    var elmt = _driver.FindElement(By.Id("g-recaptcha-response"));
-                    _driver.ExecuteScript("arguments[0].setAttribute('style','')", elmt);
-                    var recaptchaService = new RecaptchaService();
-                    var recaptchaResponse = await recaptchaService.GetRecaptchaId("6LcSzk8bAAAAAOTkPCjprgWDMPzo_kgGC3E5Vn-T", pageurl);
-                    elmt.SendKeys(recaptchaResponse);
-                    await Task.Delay(5000);
-                    _driver.ExecuteScript("captchaCallback();");
-                    await Task.Delay(5000);
-                    if (_driver.PageSource.Contains("de que nos estamos a dirigir a si, e não a um robot"))
+                    if (_driver.PageSource.Contains("1er site de véhicules d'occasion"))
                     {
-                        await Task.Delay(1000);
+                        _driver.Manage().Cookies.DeleteAllCookies();
                         _driver.Quit();
-                        continue;
+                        _chromeProcess.Kill();
+                        await GetCookies();
                     }
-                    do
+                    else if (!_driver.PageSource.Contains("1er site de véhicules d'occasion"))
                     {
                         try
                         {
-                            var x = _driver.FindElement(By.Id("recherche-react-home"));
-                            break;
+                            var frameAudio = _driver.FindElement(By.XPath("//iframe[contains(@src,'initialCid')]"));
+                            _driver.SwitchTo().Frame(frameAudio);
+                            try
+                            {
+                                _driver.FindElement(By.Id("captcha__audio__button")).Click();
+                            }
+                            catch (Exception)
+                            {
+                            }
+                            var audioUrl = _driver.FindElement(By.XPath("//audio"))?.GetAttribute("src");
+                            if (audioUrl != null)
+                            {
+                                _recaptchaService._driver = _driver;
+                                cookies = await _recaptchaService.ResolveAudioCaptcha(audioUrl);
+                                HttpCaller._cookies = cookies;
+                                _driver.Quit();
+                                _chromeProcess.Kill();
+                            }
                         }
                         catch (Exception)
                         {
-                            await Task.Delay(500);
-                            continue;
                         }
-                    } while (true);
+                    }
+                    else
+                    {
+                        var pageurl = _driver.FindElement(By.XPath("//iframe[contains(@src,'initialCid')]")).GetAttribute("src");
+                        var element = _driver.FindElement(By.XPath("//iframe[contains(@src,'initialCid')]"));
+                        _driver.SwitchTo().Frame(element);
+                        await _recaptchaService.ResolveV2Captcha(pageurl, element);
+                        _driver?.Quit();
+                        _recaptchaService._driver?.Quit();
+                        _chromeProcess.Kill();
+                    }
+                    break;
                 }
-                break;
+                catch (Exception ex)
+                {
+                    MessageBox.Show("new error: "+ ex.ToString());
+                    Application.Exit();
+                    if (ex.Message.Contains("ERR_INTERNET_DISCONNECTED"))
+                    {
+                        _driver?.Quit();
+                        continue;
+                    }
+                    _driver?.Quit();
+                }
             } while (true);
-            var cookieBiulde = new StringBuilder();
-            foreach (var cookie in _driver.Manage().Cookies.AllCookies)
-            {
-                cookieBiulde.Append(cookie.Name + "=" + cookie.Value + ";");
-            }
-            cookieBiulde.Length--;
-            var cookies = cookieBiulde.ToString();
-            HttpCaller.cookies = cookies;
             _driver?.Quit();
         }
+
+        private async Task StratChromeProcess()
+        {
+            _chromeProcess = new Process();
+            _chromeProcess.StartInfo.FileName = @"c:\program files\google\chrome\application\chrome.exe";
+            _chromeProcess.StartInfo.Arguments = " --remote-debugging-port=9222";
+            _chromeProcess.Start();
+            await AttachToChrome();
+        }
+
         private async Task StartScraping(InputModel inputModel)
         {
             var companySellerType = "";
@@ -303,7 +382,7 @@ namespace lacentrale.fr_Scraper
 
             var counter = 1;
             var page = 1;
-            
+
             var carChecked = false;
             do
             {
@@ -330,21 +409,25 @@ namespace lacentrale.fr_Scraper
                 }
                 foreach (var carNode in carsNodes)
                 {
+
                     var urlCar = "https://www.lacentrale.fr" + carNode.GetAttributeValue("href", "");
-                    if (_numberOfAllCarsScraped % 8 == 0 && _numberOfAllCarsScraped != 0)
+                    var car = await ScrapeCarDetails(urlCar);
+                    if (car.DateOfTheAdvertising != null)
+                    {
+                        var dateSincePublished = int.Parse(car.DateOfTheAdvertising);
+                        if (dateSincePublished <= _daysSincePublishedOption)
+                        {
+                            _cars.Add(car);
+                        }
+                    }
+                    Display($@"{counter} car scraped/{_availableCars} from filter {MakeAndModel}");
+                    SetProgress((counter) * 100 / _availableCars);
+                    counter++;
+                    if (_numberOfAllCarsScraped % 9 == 0)
                     {
                         await GetCookies();
                     }
-                    var car = await ScrapeCarDetails(urlCar);
-                    var dateSincePublished = int.Parse(car.DateOfTheAdvertising);
-                    if (dateSincePublished <= _daysSincePublishedOption)
-                    {
-                        cars.Add(car);
-                    }
-                    //await Task.Delay(1000);
-                    Display($@"{counter} car scraped/{_availableCars} from filter {MakeAndModel}");
-                    SetProgress((counter * 100) / _availableCars);
-                    counter++;
+
                 }
                 page++;
             } while (true);
@@ -353,50 +436,67 @@ namespace lacentrale.fr_Scraper
         {
             var car = new Car();
             car.Url = url;
-            var doc = await HttpCaller.GetDoc(url);
+            //var doc = await HttpCaller.GetDoc(url);
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            do
+            {
+                doc = await HttpCaller.GetDoc(url);
+
+                if (doc.DocumentNode.OuterHtml.Contains("502 ERROR"))
+                {
+                    await Task.Delay(2000);
+                    continue;
+                }
+                break;
+            } while (true);
             //doc.Save("car.html");
             car.DateOfTheAdvertising = doc.DocumentNode.SelectSingleNode("//span[contains(text(),'Publié depuis')]/strong")
-                .InnerText.Replace("jours", "").Replace("jour", "").Trim();
+                ?.InnerText.Replace("jours", "").Replace("jour", "").Trim();
             try
             {
                 var dateSincePublished = int.Parse(car.DateOfTheAdvertising);
             }
             catch (Exception)
             {
-                throw;
             }
-            var title = doc.DocumentNode.SelectSingleNode("//div[@id='generalInformationWrapper']//h1").InnerText
+            var title = doc.DocumentNode.SelectSingleNode("//div[@id='generalInformationWrapper']//h1")?.InnerText
                 .Trim();
-            var array = title.Split(' ');
-            car.Make = array[0];
-            car.Model = title.Replace(car.Make, "").Trim();
-            car.Year = doc.DocumentNode.SelectSingleNode("//*[contains(text(),'circulation')]/../following-sibling::span").InnerText.Trim();
-            car.Kilometre = doc.DocumentNode.SelectSingleNode("//*[contains(text(),'Kilométrage com')]/../following-sibling::span").InnerText.Trim();
+            if (title != null)
+            {
+                var array = title.Split(' ');
+                car.Make = array[0];
+                car.Model = title.Replace(car.Make, "").Trim();
+            }
+            car.Year = doc.DocumentNode.SelectSingleNode("//*[contains(text(),'circulation')]/../following-sibling::span")?.InnerText.Trim();
+            car.Kilometre = doc.DocumentNode.SelectSingleNode("//*[contains(text(),'Kilométrage com')]/../following-sibling::span")?.InnerText.Trim();
             var jsonPhoneVaribalesQuery = doc.DocumentNode
-                .SelectSingleNode("//script[contains(text(),'window.fragment_seller_contact_tabs_state')]").InnerText
+                .SelectSingleNode("//script[contains(text(),'window.fragment_seller_contact_tabs_state')]")?.InnerText
                 .Trim().Replace("window.fragment_seller_contact_tabs_state = ", "").Replace(";", "");
-            var objt = JObject.Parse(jsonPhoneVaribalesQuery);
-            car.Price = string.Format(CultureInfo.InvariantCulture, "€{0:n0}", (int)objt.SelectToken("price"));
-            var id = (string)objt.SelectToken("classifiedId");
-            var cuRef = (string)objt.SelectToken("classifiedOwnerCorrelationId");
-            var eci = (string)objt.SelectToken("eventCorrelationId");
-
-
-            var link = $@"https://www.lacentrale.fr/seller-contact-tab?tab=PHONE&id={id}&cuRef={cuRef}&eci={eci}&isMobile=false";
-            doc = await HttpCaller.GetDoc(link);
-
-            var phoneText = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//span[@class='phone']")?.InnerText.Trim());
-            if (phoneText != null)
+            if (jsonPhoneVaribalesQuery != null)
             {
-                var arrayP = phoneText.Split('\n');
-                car.Phone = arrayP[0];
+                var objt = JObject.Parse(jsonPhoneVaribalesQuery);
+                car.Price = string.Format(CultureInfo.InvariantCulture, "€{0:n0}", (int)objt.SelectToken("price"));
+                var id = (string)objt.SelectToken("classifiedId");
+                var cuRef = (string)objt.SelectToken("classifiedOwnerCorrelationId");
+                var eci = (string)objt.SelectToken("eventCorrelationId");
+
+
+                var link = $@"https://www.lacentrale.fr/seller-contact-tab?tab=PHONE&id={id}&cuRef={cuRef}&eci={eci}&isMobile=false";
+                doc = await HttpCaller.GetDoc(link);
+
+                var phoneText = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//span[@class='phone']")?.InnerText.Trim());
+                if (phoneText != null)
+                {
+                    var arrayP = phoneText.Split('\n');
+                    car.Phone = arrayP[0];
+                }
+                else
+                {
+                    car.Phone = "N/A";
+                }
+                _numberOfAllCarsScraped++;
+                car.IsRecentlyPublished = true;
             }
-            else
-            {
-                car.Phone = "N/A";
-            }
-            _numberOfAllCarsScraped++;
-            car.IsRecentlyPublished = true;
             return car;
         }
 
@@ -473,9 +573,10 @@ namespace lacentrale.fr_Scraper
             File.WriteAllText("conf", JsonConvert.SerializeObject(_config, Formatting.Indented));
         }
 
-        private void DevForm_FormClosing(object sender, FormClosingEventArgs e)
+        private async void DevForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             _driver?.Quit();
+            _recaptchaService?._driver?.Quit();
             inputModels = new List<InputModel>();
             for (int i = 0; i < FiltersDGV.RowCount; i++)
             {
@@ -483,6 +584,7 @@ namespace lacentrale.fr_Scraper
                 inputModels.Add(input);
             }
             File.WriteAllText("save conf", JsonConvert.SerializeObject(inputModels, Formatting.Indented));
+            await SaveData();
         }
 
         private void FiltersDGV_CustomRowCellEdit(object sender, DevExpress.XtraGrid.Views.Grid.CustomRowCellEditEventArgs e)
@@ -530,14 +632,14 @@ namespace lacentrale.fr_Scraper
             sheet.Cells[1, 7].Value = "Kilometers";
             sheet.Cells[1, 8].Value = "Weblink";
 
-            var range = sheet.Cells[$"A1:H{cars.Count + 1}"];
+            var range = sheet.Cells[$"A1:H{_cars.Count + 1}"];
             var tab = sheet.Tables.Add(range, "");
 
             tab.TableStyle = TableStyles.Medium2;
             sheet.Cells.Style.Font.Size = 12;
 
             var row = 2;
-            foreach (var car in cars)
+            foreach (var car in _cars)
             {
 
                 sheet.Cells[row, 1].Value = car.Make;

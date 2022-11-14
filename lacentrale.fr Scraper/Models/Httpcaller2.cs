@@ -36,7 +36,6 @@ namespace lacentrale.fr_Scraper.Models
         public async Task<string> GetHtml(string url, int maxAttempts = 3)
         {
 
-            int tries = 0;
             do
             {
                 try
@@ -47,19 +46,10 @@ namespace lacentrale.fr_Scraper.Models
                 }
                 catch (WebException ex)
                 {
-                    var errorMessage = "";
-                    try
-                    {
-                        errorMessage = new StreamReader(ex.Response.GetResponseStream()).ReadToEnd();
-                    }
-                    catch (Exception)
-                    {
-                    }
-                    tries++;
-                    if (tries == maxAttempts)
-                    {
-                        throw new Exception(ex.Status + " " + ex.Message + " " + errorMessage);
-                    }
+                    await Task.Delay(2000);
+                }
+                catch (Exception ex)
+                {
                     await Task.Delay(2000);
                 }
             } while (true);

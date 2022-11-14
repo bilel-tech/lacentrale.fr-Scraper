@@ -1,7 +1,12 @@
 ﻿using Newtonsoft.Json.Linq;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Speech.Recognition;
 using System.Text;
 using System.Threading.Tasks;
 using thatsthem_scraper.Models;
@@ -10,8 +15,33 @@ namespace lacentrale.fr_Scraper.Models
 {
     public class RecaptchaService
     {
+        public ChromeDriver _driver;
         public HttpCaller _caller = new HttpCaller();
-        public async Task<string> GetRecaptchaId(string siteKey,string pageurl)
+        public async Task ResolveV2Captcha(string pageurl,IWebElement elmt)
+        {
+            do
+            {
+                _driver.ExecuteScript("arguments[0].setAttribute('style','')", elmt);
+                var recaptchaResponse = await GetRecaptchaId("6LcSzk8bAAAAAOTkPCjprgWDMPzo_kgGC3E5Vn-T", pageurl);
+                elmt.SendKeys(recaptchaResponse);
+                await Task.Delay(5000);
+                _driver.ExecuteScript("captchaCallback();");
+                await Task.Delay(5000);
+                if (_driver.PageSource.Contains("de que nos estamos a dirigir a si, e não a um robot"))
+                {
+                    await Task.Delay(1000);
+                    _driver.Quit();
+                    continue;
+                }
+                do
+                {
+                    var x = _driver.FindElement(By.Id("recherche-react-home"));
+                    break;
+
+                } while (true); 
+            } while (true);
+        }
+        public async Task<string> GetRecaptchaId(string siteKey, string pageurl)
         {
             var url = $"http://2captcha.com/in.php?key=6032005e1a3e0d53dac9999ffe7eb083&method=userrecaptcha&googlekey={siteKey}&pageurl={pageurl}&json=1";
             var objt = new JObject();
@@ -98,5 +128,61 @@ namespace lacentrale.fr_Scraper.Models
                 return recpatchaResponse;
             } while (true);
         }
+       
+        public async Task<string> ResolveAudioCaptcha(string audioUrl)
+        {
+            WebClient client = new WebClient();
+            client.Headers.Add("Host", "dd.prod.captcha-delivery.com");
+            client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36");
+            client.DownloadFile(audioUrl, "audio.wav");
+            SpeechRecognitionEngine sre = new SpeechRecognitionEngine();
+            Grammar gr = new DictationGrammar();
+            sre.LoadGrammar(gr);
+            sre.SetInputToWaveFile("audio.wav");
+            sre.BabbleTimeout = new TimeSpan(int.MaxValue);
+            sre.InitialSilenceTimeout = new TimeSpan(int.MaxValue);
+            sre.EndSilenceTimeout = new TimeSpan(100000000);
+            sre.EndSilenceTimeoutAmbiguous = new TimeSpan(100000000);
+
+            StringBuilder sb = new StringBuilder();
+            while (true)
+            {
+                try
+                {
+                    var recText = sre.Recognize();
+                    if (recText == null)
+                    {
+                        break;
+                    }
+
+                    sb.Append(recText.Text);
+                }
+                catch (Exception)
+                {
+                    break;
+                }
+            }
+            var audioText = sb.ToString();
+            var numbers = audioText.Substring(audioText.LastIndexOf(' ') + 1);
+            var cookieBiulde = new StringBuilder();
+
+
+            var inputs = _driver.FindElements(By.XPath("//div[@class='audio-captcha-input-container']/input"));
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                inputs[i].SendKeys(numbers[i].ToString());
+            }
+            await Task.Delay(3000);
+            foreach (var cookie in _driver.Manage().Cookies.AllCookies)
+            {
+                cookieBiulde.Append(cookie.Name + "=" + cookie.Value + ";");
+                await Task.Delay(1000);
+            }
+            _driver.Quit();
+            cookieBiulde.Length--;
+            var cookies = cookieBiulde.ToString();
+            return cookies;
+        }
+       
     }
 }
